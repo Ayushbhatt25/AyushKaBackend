@@ -340,14 +340,125 @@ ${prompt}
 
 
 
+export const refineProject = async (req, res) => {
+  try {
+    const userId = req.auth()?.userId || req.body.userId;
+    const { projectId, modification_prompt } = req.body;
+
+    if (!userId || !projectId || !modification_prompt) {
+      return res.status(400).json({
+        message: "projectId and modification_prompt are required"
+      });
+    }
+
+    const project = await WebsiteProject.findOne({
+      _id: projectId,
+      clerkUserId: userId
+    });
+
+    if (!project) {
+      return res.status(404).json({ message: "Project not found" });
+    }
+
+    if (!project.current_code || project.current_code.startsWith("ERROR")) {
+      return res.status(400).json({ message: "Project has no generated code yet or generation failed. Please wait or try again." });
+    }
+
+    const user = await User.findOne({ clerkUserId: userId });
+    if (!user || user.credits < 1) {
+      return res.status(400).json({ message: "Not enough credits" });
+    }
+
+    user.credits -= 1;
+    await user.save();
+
+    await Conversation.create({
+      role: "user",
+      content: modification_prompt,
+      projectId
+    });
+
+    res.status(200).json({
+      success: true,
+      remainingCredits: user.credits
+    });
+
+    refineWebsite(projectId, project.current_code, modification_prompt).catch(console.error);
+  } catch (error) {
+    console.error("Refine Project Error:", error);
+    res.status(500).json({ error: error.message });
+  }
+};
+
+const refineWebsite = async (projectId, currentCode, modificationPrompt) => {
+  try {
+    console.log(`[AI] Refining project ${projectId}...`);
+    const messages = [
+      {
+        role: "system",
+        content: `
+You are a senior frontend developer. The user has an existing website and wants to make changes.
+
+CURRENT WEBSITE CODE (JSON format with files):
+${currentCode}
+
+USER'S REQUESTED CHANGES:
+${modificationPrompt}
+
+Apply ONLY the changes requested. Keep everything else the same.
+Return ONLY valid JSON in this exact format (no markdown, no explanation):
+{
+  "files": {
+    "index.html": "full updated html",
+    "styles.css": "full updated css",
+    "script.js": "full updated javascript"
+  }
+}
+`
+      },
+      {
+        role: "user",
+        content: `Make these changes: ${modificationPrompt}`
+      }
+    ];
+
+    const generatedCode = await generateAIResponse(messages);
+    if (!generatedCode) throw new Error("AI returned empty code.");
+
+    const cleanCode = generatedCode.replace(/```[a-z]*\n?|```/gi, "").trim();
+    await WebsiteProject.findByIdAndUpdate(projectId, { current_code: cleanCode });
+
+    await Conversation.create({
+      role: "assistant",
+      content: cleanCode,
+      projectId
+    });
+    console.log(`[AI] Project ${projectId} refined.`);
+  } catch (error) {
+    console.error("[AI] Refine failed:", error);
+    await WebsiteProject.findByIdAndUpdate(projectId, {
+      current_code: "ERROR: Failed to refine. " + error.message
+    });
+  }
+};
+
 export const getConversation = async (req, res) => {
   try {
+    const userId = req.auth()?.userId;
     const { projectId } = req.params;
 
-    if (!projectId) {
+    if (!userId || !projectId) {
       return res.status(400).json({
         message: "ProjectId is required"
       });
+    }
+
+    const project = await WebsiteProject.findOne({
+      _id: projectId,
+      clerkUserId: userId
+    });
+    if (!project) {
+      return res.status(404).json({ error: "Project not found" });
     }
 
     const messages = await Conversation.find({

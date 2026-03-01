@@ -8,7 +8,7 @@ export const generateAIResponse = async (messages, retries = 3, delay = 2000) =>
   for (let i = 0; i < retries; i++) {
     try {
       const model = genAI.getGenerativeModel({
-        model: "gemini-flash-latest"
+        model: "gemini-2.5-flash"
       });
 
       const prompt = messages.find(m => m.role === "user")?.content || "";

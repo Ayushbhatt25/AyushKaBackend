@@ -1,0 +1,54 @@
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
+:root {
+  --bg-dark: #0a0a0f;
+  --bg-card: #12121a;
+  --bg-elevated: #1a1a24;
+  --accent: #00d4aa;
+  --accent-dim: #00a884;
+  --accent-glow: rgba(0, 212, 170, 0.25);
+  --purple: #a855f7;
+  --purple-dim: #7c3aed;
+  --text: #e4e4e7;
+  --text-muted: #71717a;
+  --border: #27272a;
+  --radius: 12px;
+  --radius-lg: 20px;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Outfit', system-ui, sans-serif;
+  background: var(--bg-dark);
+  color: var(--text);
+  min-height: 100vh;
+  line-height: 1.6;
+}
+
+#root {
+  min-height: 100vh;
+}
+
+a {
+  color: var(--accent);
+  text-decoration: none;
+}
+
+a:hover {
+  color: var(--accent-dim);
+}
+
+button {
+  font-family: inherit;
+  cursor: pointer;
+  border: none;
+}
+
+input, textarea {
+  font-family: inherit;
+}
